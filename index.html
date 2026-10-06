@@ -405,9 +405,10 @@ async function addRec(rid){
   if(error){ if(error.code === "23505"){ S.mine.add(rid); return "dup"; } throw error; }
   S.mine.add(rid); bump(rid, "rec"); return "ok";
 }
-async function addTip(rid, text){
-  if(S.mode !== "remote"){ local.E.push({id:"l-"+rid8(), rid, ty:"tip", al:ALIAS_DEFAULT, x:text, ts:Date.now()}); saveLocal(); return; }
-  const x = must(await S.sb.from("events").insert({restaurant_id:rid, type:"tip", user_id:S.uid, alias:ALIAS_DEFAULT, body:text}).select("id,alias,body,created_at").single());
+async function addTip(rid, text, alias){
+  alias = alias || ALIAS_DEFAULT;
+  if(S.mode !== "remote"){ local.E.push({id:"l-"+rid8(), rid, ty:"tip", al:alias, x:text, ts:Date.now()}); saveLocal(); return; }
+  const x = must(await S.sb.from("events").insert({restaurant_id:rid, type:"tip", user_id:S.uid, alias, body:text}).select("id,alias,body,created_at").single());
   const list = S.tips.get(rid) || []; list.unshift({id:x.id, rid, ty:"tip", al:x.alias, x:x.body, ts:Date.parse(x.created_at)}); S.tips.set(rid, list);
   bump(rid, "tip");
 }
@@ -448,7 +449,8 @@ async function boot(){
   let cfg = null;
   try{ const r = await fetch("/api/config", {cache:"no-store"}); if(r.ok) cfg = await r.json(); }catch(e){}
   if(cfg && cfg.supabaseUrl && cfg.supabaseKey && window.supabase){
-    S.sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, {auth:{persistSession:false, autoRefreshToken:false}});
+    const sbUrl = String(cfg.supabaseUrl).trim().replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, "");
+    S.sb = window.supabase.createClient(sbUrl, String(cfg.supabaseKey).trim(), {auth:{persistSession:false, autoRefreshToken:false}});
     S.mode = "remote"; await reload();
   } else { S.mode = "local"; refresh(); }
   if(cfg && cfg.kakaoKey) loadKakao(cfg.kakaoKey);
@@ -577,7 +579,7 @@ home(){
       </div>
       <div class="rank-list">${S.mode === "loading" ? skel : S.loadError ? failed : t.length ? cards : empty}</div>
       ${t.length && t.length < 3 ? `<p class="t-caption" style="margin:0;text-align:center">추천이 쌓이면 TOP3가 더 풍성해져요.</p>` : ""}
-      <button class="btn btn--secondary" type="button" data-go="all">${icon("utensils")}전체 맛집 보기${icon("chevron-right","ico ico--16")}</button>
+      <button class="btn btn--secondary" type="button" data-go="all">${icon("search")}검색으로 찾기${icon("chevron-right","ico ico--16")}</button>
       <p class="foot-note">[가상]이 붙은 식당과 그 팁은 샘플 데이터예요.<br>사용자가 등록한 장소 정보는 카카오맵에서 가져와요.${S.mode === "local" ? "<br>지금은 연습 모드라 이 브라우저에만 저장돼요." : ""}</p>
     </section>`;
     bindCommon();
@@ -891,20 +893,30 @@ detail({rid}){
     <div class="stack" style="margin-top:var(--space-2)">
       <div class="sec-head"><h2 class="t-heading">동료들의 방문 팁</h2><span class="t-caption num" id="tip-meta"></span></div>
       ${privacy()}
-      <form class="comment-form" id="tip-form" novalidate>
+      <form class="stack" id="tip-form" novalidate style="gap:var(--space-3)">
+        <div class="field" id="fd-nick" data-max="10">
+          <label class="field__label" for="in-nick">닉네임 <span class="field__opt">(선택)</span></label>
+          <input class="input" id="in-nick" type="text" maxlength="20" placeholder="예: 야근전사 · 비우면 익명 방문자" autocomplete="nickname">
+          <div class="field__meta"><span class="field__help">실명 대신 닉네임을 써주세요. 다음에도 기억해둘게요.</span><span class="field__error">${icon("alert-circle")}닉네임은 10자 이내로 작성해주세요.</span><span class="field__count num">0/10</span></div>
+        </div>
+        <div class="comment-form">
         <div class="field" id="fd-c" data-max="200">
           <label class="field__label" for="in-c">방문 팁 남기기</label>
           <input class="input" id="in-c" type="text" placeholder="메뉴, 대기 시간, 함께 먹기 좋은 인원 등을 알려주세요" autocomplete="off">
           <div class="field__meta"><span class="field__help"></span><span class="field__error">${icon("alert-circle")}<span id="er-c">방문 팁은 200자 이내로 작성해주세요.</span></span><span class="field__count num">0/200</span></div>
         </div>
         <button class="btn btn--primary" type="submit" id="tip-go" style="margin-top:26px"${readOnly() ? " disabled" : ""}>등록</button>
+        </div>
       </form>
       <div id="tips"></div>
     </div>
   </section>`;
   bindCommon();
-  const input = $("#in-c");
+  const input = $("#in-c"), nick = $("#in-nick");
   bindCounter($("#fd-c"), () => { $("#er-c").textContent = "방문 팁은 200자 이내로 작성해주세요."; });
+  nick.value = lsGet("sg.nick", "");
+  bindCounter($("#fd-nick"), () => {});
+  nick.dispatchEvent(new Event("input"));
 
   function renderRec(){
     const s = stats(rid), done = recToday(rid);
@@ -939,8 +951,11 @@ detail({rid}){
     const text = input.value.trim(), f = $("#fd-c");
     if(!text){ $("#er-c").textContent = "방문 팁 내용을 입력해주세요."; f.classList.add("is-error"); input.focus(); return; }
     if(len(text) > 200){ f.classList.add("is-error"); return; }
+    const al = nick.value.replace(/\s+/g, " ").trim();
+    if(len(al) > 10){ $("#fd-nick").classList.add("is-error"); nick.focus(); return; }
+    lsSet("sg.nick", al);
     busy(b, "등록 중…");
-    try{ await addTip(rid, text); unbusy(b); input.value = ""; input.dispatchEvent(new Event("input")); renderTips(); toast("방문 팁을 등록했어요."); }
+    try{ await addTip(rid, text, al); unbusy(b); input.value = ""; input.dispatchEvent(new Event("input")); renderTips(); toast("방문 팁을 등록했어요."); }
     catch(err){ unbusy(b); toast("방문 팁을 등록하지 못했어요. 내용을 유지했으니 다시 시도해주세요."); }
   };
   renderRec(); renderTips();
@@ -948,35 +963,59 @@ detail({rid}){
   screenRefresh = () => { renderRec(); renderTips(); };
 },
 
-/* ---------------- S05 전체 맛집 (신규) ---------------- */
+/* ---------------- S05 검색으로 찾기 (신규) ---------------- */
 all(args){
-  let sort = args.sort || "near", shown = 10;
+  let sort = args.sort || "near", shown = 10, q = args.q || "", cat = args.cat || "";
+  const CAT_CHIPS = ["한식","중식","일식","양식","분식","기타"];
   view.innerHTML = `<section class="screen">
     ${topbar("")}
-    <div class="head"><h1 class="t-title">전체 맛집</h1><p class="t-caption" style="margin:0">동료들이 등록한 맛집을 한 번에 볼 수 있어요.</p></div>
+    <div class="head"><h1 class="t-title">검색으로 찾기</h1><p class="t-caption" style="margin:0">가게 이름이나 메뉴, 종류로 족보에 등록된 맛집을 찾아요.</p></div>
+    <div class="field">
+      <label class="sr-only" for="in-q">맛집 검색어</label>
+      <input class="input" id="in-q" type="search" enterkeyhint="search" placeholder="예: 국밥, 짬뽕, 혼밥" autocomplete="off" value="${esc(q)}">
+    </div>
+    <div class="chips" id="cat" aria-label="종류로 찾기">${CAT_CHIPS.map(c => chipBtn(c, c, cat === c, "multi")).join("")}</div>
     <div class="sec-head" style="align-items:center;flex-wrap:wrap"><span class="t-label num" id="cnt"></span>
       <div class="chips" id="sort" role="radiogroup" aria-label="정렬">${chipBtn("near","가까운 순",sort === "near")}${chipBtn("rec","추천 많은 순",sort === "rec")}</div></div>
-    <div id="list"></div>
+    <div id="list" aria-live="polite"></div>
   </section>`;
   bindCommon();
+  const hay = r => norm([r.n, r.c, r.m, r.tip, r.a, String(r.g || "").split(",").map(g => lab(TAGS, g)).join(" ")].filter(Boolean).join(" "));
   function render(){
-    const rows = allR().filter(r => r.rg === S.region).map(r => ({r, s:stats(r.id)})).sort(sort === "near"
+    const words = q.split(/\s+/).map(norm).filter(Boolean);
+    const rows = allR().filter(r => r.rg === S.region && (!cat || r.c === cat) && words.every(w => hay(r).includes(w)))
+      .map(r => ({r, s:stats(r.id)})).sort(sort === "near"
       ? (a,b) => (a.r.wk ?? 999) - (b.r.wk ?? 999) || a.r.n.localeCompare(b.r.n, "ko")
       : (a,b) => b.s.tot - a.s.tot || (a.r.wk ?? 999) - (b.r.wk ?? 999));
-    $("#cnt").textContent = `맛집 ${rows.length}곳`;
-    if(!rows.length){ $("#list").innerHTML = `<div class="card state"><span class="state__emoji" aria-hidden="true">🍽️</span><h2 class="t-heading">아직 등록된 맛집이 없어요.</h2><button class="btn btn--primary" type="button" id="reg">맛집 등록하기</button></div>`; $("#reg").onclick = () => go("register"); return; }
+    const filtered = words.length || cat;
+    $("#cnt").textContent = filtered ? `찾은 맛집 ${rows.length}곳` : `맛집 ${rows.length}곳`;
+    if(!rows.length){
+      $("#list").innerHTML = filtered
+        ? `<div class="card state"><span class="state__emoji" aria-hidden="true">🍽️</span><h2 class="t-heading">찾는 맛집이 아직 족보에 없어요.</h2><p class="t-sub" style="margin:0">다른 이름이나 종류로 찾아보세요.</p><button class="btn btn--primary" type="button" id="reg">맛집 등록하기</button></div>`
+        : `<div class="card state"><span class="state__emoji" aria-hidden="true">🍽️</span><h2 class="t-heading">아직 등록된 맛집이 없어요.</h2><button class="btn btn--primary" type="button" id="reg">맛집 등록하기</button></div>`;
+      $("#reg").onclick = () => go("register"); return;
+    }
     $("#list").innerHTML = `<div class="card"><ul class="all-list">${rows.slice(0, shown).map(({r,s}) => {
-      const meta = [r.wk && r.bp ? `${esc(r.bp)}에서 도보 약 ${r.wk}분` : null, priceLine(r)].filter(Boolean).join(" · ");
+      const meta = [r.wk && r.bp ? `${esc(r.bp)}에서 도보 약 ${r.wk}분` : null, priceLine(r), r.m ? esc(r.m) : null].filter(Boolean).join(" · ");
       return `<li class="all-item"><button type="button" class="all-item__btn" data-rid="${esc(r.id)}" aria-label="${esc(r.n)}, ${meta}, 추천 ${s.tot}">
         <span class="all-item__body"><span class="all-item__name"><span>${esc(r.n)}</span><span class="badge">${esc(r.c)}</span></span><span class="all-item__meta num">${meta}</span></span>
         <span class="all-item__rec num"${s.tot ? "" : ' style="color:var(--color-text-sub);font-weight:600"'}>추천 ${s.tot}</span>${icon("chevron-right")}</button></li>`; }).join("")}</ul></div>
       ${shown < rows.length ? `<button class="btn btn--text" type="button" id="more" style="display:flex;margin:4px auto 0">더 보기</button>` : ""}`;
-    $$("[data-rid]").forEach(b => b.onclick = () => go("detail", {rid:b.dataset.rid}));
+    $$("[data-rid]", view).forEach(b => b.onclick = () => go("detail", {rid:b.dataset.rid}));
     const m = $("#more"); if(m) m.onclick = () => { shown += 10; render(); };
   }
+  let t;
+  $("#in-q").addEventListener("input", e => { clearTimeout(t); t = setTimeout(() => { q = e.target.value; current.args.q = q; shown = 10; render(); }, 150); });
+  $("#in-q").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); e.target.blur(); } });
+  /* 종류 칩: 하나만 고르고, 다시 누르면 해제 */
+  $("#cat").addEventListener("click", e => {
+    const c = e.target.closest(".chip"); if(!c) return;
+    cat = cat === c.dataset.v ? "" : c.dataset.v; current.args.cat = cat;
+    $$("#cat .chip").forEach(x => x.setAttribute("aria-pressed", x.dataset.v === cat)); shown = 10; render();
+  });
   bindChipGroup($("#sort"), v => { sort = v; current.args.sort = v; shown = 10; render(); });
   render(); screenRefresh = render;
-},
+}
 };
 
 /* 글자 수 카운터 */
