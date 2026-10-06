@@ -234,6 +234,7 @@ html,body{min-height:100%}
 .sheet .duo{margin-top:0}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 a.btn{text-decoration:none}
+
 .search-box{position:relative}
 .search-box .ico{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--color-brand-600);pointer-events:none}
 .search-box .input{height:56px;padding-left:48px;border:1.5px solid var(--color-brand-600);border-radius:var(--radius-md);background:var(--color-surface)}
@@ -590,8 +591,13 @@ home(){
       <div class="topbar"><span></span>${regionChip()}</div>
       <div class="head"><h1 class="t-display"><em>삼슐랭</em> 가이드</h1>
         <p class="t-sub" style="margin:4px 0 0;font-size:14px;line-height:20px">용산 본사부터 클라이언트 현장까지,<br>삼일인이 함께 쌓는 맛집 족보</p></div>
+      <form class="stack" id="home-search" role="search" style="gap:var(--space-3)">
+        <div class="search-box">${icon("search")}<label class="sr-only" for="home-q">족보 검색</label>
+          <input class="input" id="home-q" type="search" enterkeyhint="search" placeholder="가게 이름, 메뉴로 검색 (예: 국밥, 혼밥)" autocomplete="off"></div>
+        <div class="quick-chips" aria-label="빠른 필터">${QUICK.map(([k,l]) => `<button type="button" class="quick-chip" data-quick="${k}">${l}</button>`).join("")}</div>
+      </form>
       <div class="duo" style="margin:0">
-        <button class="btn btn--primary" type="button" data-go="find">${icon("search")}맛집 찾기</button>
+        <button class="btn btn--primary" type="button" data-go="find">${icon("utensils")}맛집 찾기</button>
         <button class="btn btn--secondary" type="button" data-go="register" style="height:52px">${icon("plus")}맛집 등록</button>
       </div>
       <div style="margin-top:var(--space-2)">
@@ -600,11 +606,6 @@ home(){
       </div>
       <div class="rank-list">${S.mode === "loading" ? skel : S.loadError ? failed : t.length ? cards : empty}</div>
       ${t.length && t.length < 3 ? `<p class="t-caption" style="margin:0;text-align:center">추천이 쌓이면 TOP3가 더 풍성해져요.</p>` : ""}
-      <form class="stack" id="home-search" role="search" style="gap:var(--space-3);margin-top:var(--space-2)">
-        <div class="search-box">${icon("search")}<label class="sr-only" for="home-q">족보 검색</label>
-          <input class="input" id="home-q" type="search" enterkeyhint="search" placeholder="가게 이름, 메뉴로 검색 (예: 국밥, 혼밥)" autocomplete="off"></div>
-        <div class="quick-chips" aria-label="빠른 필터">${QUICK.map(([k,l]) => `<button type="button" class="quick-chip" data-quick="${k}">${l}</button>`).join("")}</div>
-      </form>
       <p class="foot-note">[가상]이 붙은 식당과 그 팁은 샘플 데이터예요.<br>사용자가 등록한 장소 정보는 카카오맵에서 가져와요.${S.mode === "local" ? "<br>지금은 연습 모드라 이 브라우저에만 저장돼요." : ""}</p>
     </section>`;
     bindCommon();
