@@ -1,0 +1,91 @@
+-- 삼슐랭 가이드 · Supabase 저장소 v1 (2026-10-06)
+-- 표 2개: restaurants(사용자가 등록한 식당), events(추천·방문 팁)
+-- 샘플 가상 식당 58곳은 앱 안에 들어 있어서 여기엔 없어요.
+-- 규칙: 누구나 읽기·추가만 가능, 수정·삭제는 불가. 시각은 서버가 정해요.
+-- 여러 번 실행해도 안전해요.
+
+-- 1) 식당 표
+create table if not exists public.restaurants (
+  id             text primary key default ('r-' || replace(gen_random_uuid()::text, '-', '')),
+  region_id      text not null check (region_id in ('DEMO_YONGSAN', 'DEMO_YANGPYEONG_A')),
+  name           text not null check (char_length(btrim(name)) between 1 and 30),
+  category_label text check (char_length(category_label) <= 20),
+  address        text check (char_length(address) <= 100),
+  time_slots     text not null check (time_slots ~ '^(LUNCH|DINNER|LATE)(,(LUNCH|DINNER|LATE))*$'),
+  max_party      int  not null check (max_party in (1, 2, 4, 6, 7)),
+  price_band     text not null check (price_band in ('B0', 'B1', 'B2', 'B3')),
+  menu           text check (char_length(menu) <= 30),
+  tags           text check (tags ~ '^((FAST|SOLO|GROUP|DINING|TAKEOUT|BOOKING)(,(FAST|SOLO|GROUP|DINING|TAKEOUT|BOOKING))*)?$'),
+  tip            text check (char_length(tip) <= 100),
+  provider       text check (provider = 'kakao'),
+  place_id       text check (char_length(place_id) <= 40),
+  map_link       text check (map_link like 'https://place.map.kakao.com/%' or map_link like 'http://place.map.kakao.com/%'),
+  lat            double precision,
+  lng            double precision,
+  created_by     text not null check (char_length(created_by) between 8 and 80),
+  created_at     timestamptz not null default now()
+);
+-- 같은 지역에 같은 카카오 장소는 한 번만 등록
+create unique index if not exists restaurants_place_once
+  on public.restaurants (region_id, provider, place_id) where place_id is not null;
+
+-- 2) 추천·방문 팁 표
+create table if not exists public.events (
+  id            text primary key default ('e-' || replace(gen_random_uuid()::text, '-', '')),
+  restaurant_id text not null check (char_length(restaurant_id) <= 60),
+  type          text not null check (type in ('rec', 'tip')),
+  user_id       text not null check (char_length(user_id) between 8 and 80),
+  alias         text check (char_length(alias) <= 20),
+  body          text,
+  day_kst       text,
+  created_at    timestamptz not null default now(),
+  check ((type = 'rec' and body is null) or (type = 'tip' and char_length(btrim(body)) between 1 and 200))
+);
+-- 같은 사람·같은 식당·같은 날(KST) 추천은 1회
+create unique index if not exists events_rec_once_per_day
+  on public.events (restaurant_id, user_id, day_kst) where type = 'rec';
+create index if not exists events_restaurant_idx on public.events (restaurant_id, created_at desc);
+create index if not exists events_recent_rec_idx on public.events (created_at) where type = 'rec';
+
+-- 3) 시각은 서버가 정하기 (휴대폰 시계를 바꿔도 조작 불가)
+create or replace function public.set_server_time() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  new.created_at := now();
+  if tg_table_name = 'events' then
+    new.day_kst := to_char(now() at time zone 'Asia/Seoul', 'YYYYMMDD');
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists restaurants_server_time on public.restaurants;
+create trigger restaurants_server_time before insert on public.restaurants
+  for each row execute function public.set_server_time();
+drop trigger if exists events_server_time on public.events;
+create trigger events_server_time before insert on public.events
+  for each row execute function public.set_server_time();
+
+-- 4) 식당별 누적 추천 수·방문 팁 수 (앱이 한 번에 불러가는 요약표)
+create or replace view public.event_counts with (security_invoker = true) as
+  select restaurant_id,
+         count(*) filter (where type = 'rec') as rec_total,
+         count(*) filter (where type = 'tip') as tip_total
+  from public.events
+  group by restaurant_id;
+
+-- 5) 권한: 읽기·추가만 허용
+alter table public.restaurants enable row level security;
+alter table public.events      enable row level security;
+
+drop policy if exists "read_all"   on public.restaurants;
+drop policy if exists "insert_all" on public.restaurants;
+drop policy if exists "read_all"   on public.events;
+drop policy if exists "insert_all" on public.events;
+create policy "read_all"   on public.restaurants for select to anon, authenticated using (true);
+create policy "insert_all" on public.restaurants for insert to anon, authenticated with check (true);
+create policy "read_all"   on public.events      for select to anon, authenticated using (true);
+create policy "insert_all" on public.events      for insert to anon, authenticated with check (true);
+
+revoke update, delete, truncate on public.restaurants, public.events from anon, authenticated;
+grant select, insert on public.restaurants, public.events to anon, authenticated;
+grant select on public.event_counts to anon, authenticated;
