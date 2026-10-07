@@ -484,6 +484,21 @@ const won = n => n.toLocaleString("ko-KR") + "원";
 const icon = (id, cls="ico") => `<svg class="${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
 const len = s => [...s].length;
 const norm = s => String(s).replace(/\[가상\]/g,"").replace(/\s+/g,"").toLowerCase();
+/* 메뉴 → 식당 종류 (S05 족보 검색에서 메뉴로 못 찾으면 이 종류로 넓혀 찾기). 여러 종류에 걸치는 메뉴는 배열로 */
+const MENU_CATS = [
+  [["짜장","자장","짬뽕","탕수육","마라","깐풍기","유린기","양장피","볶음밥","울면","기스면","팔보채","동파육","꿔바로우","훠궈","양꼬치","딤섬","중국집","고추잡채","멘보샤"], ["중식"]],
+  [["초밥","스시","사시미","회덮밥","라멘","소바","돈부리","규동","가츠동","텐동","오코노미야키","타코야키","야키토리","이자카야","오마카세","장어","사케동","연어"], ["일식"]],
+  [["돈가스","돈까스","돈카츠","카츠"], ["일식","양식","분식"]],
+  [["우동"], ["일식","분식"]],
+  [["카레","커리"], ["일식","기타"]],
+  [["파스타","스파게티","피자","스테이크","리조또","햄버거","버거","샐러드","브런치","샌드위치","그라탕","오믈렛"], ["양식"]],
+  [["떡볶이","김밥","라면","라볶이","순대","튀김","어묵","오뎅","쫄면","분식"], ["분식"]],
+  [["만두"], ["분식","중식","한식"]],
+  [["국밥","순댓국","순대국","해장국","찌개","설렁탕","곰탕","갈비탕","삼계탕","감자탕","백반","제육","불고기","비빔밥","냉면","막국수","칼국수","수제비",
+    "삼겹살","갈비","족발","보쌈","닭갈비","닭볶음탕","찜닭","쌈밥","한정식","생선구이","해물탕","파전","곱창","막창","순두부","김치찜","돌솥","육개장","고기"], ["한식"]],
+  [["쌀국수","분짜","팟타이","똠얌","타코","케밥","반미","치킨"], ["기타"]],
+];
+const menuCats = w => { const hit = MENU_CATS.filter(([ks]) => ks.some(k => w.includes(k))); return hit.length ? [...new Set(hit.flatMap(([, c]) => c))] : null; };
 const rid8 = () => Math.random().toString(36).slice(2,10);
 function lsGet(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }
 function lsSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
@@ -1427,7 +1442,7 @@ all(args){
     ${topbar("")}
     <div class="head"><h1 class="t-title">족보 검색</h1><p class="t-caption" style="margin:0">가게 이름이나 메뉴, 종류로 족보에 등록된 맛집을 찾아요.</p></div>
     <div class="search-box">${icon("search")}<label class="sr-only" for="in-q">족보 검색</label>
-      <input class="input" id="in-q" type="search" enterkeyhint="search" placeholder="가게 이름, 메뉴로 검색 (예: 국밥, 혼밥)" autocomplete="off" value="${esc(q)}"></div>
+      <input class="input" id="in-q" type="search" enterkeyhint="search" placeholder="가게 이름, 메뉴로 검색 (예: 국밥, 짬뽕)" autocomplete="off" value="${esc(q)}"></div>
     <div class="quick-chips" id="quick" aria-label="빠른 필터 (여러 개 선택 가능)">${QUICK.map(([k,l]) => `<button type="button" class="quick-chip" data-v="${k}" aria-pressed="${quick.includes(k)}">${icon("check")}${l}</button>`).join("")}</div>
     <div class="chips" id="cat" aria-label="종류로 찾기">${CAT_CHIPS.map(c => chipBtn(c, c, cat === c, "multi")).join("")}</div>
     <div class="sec-head" style="align-items:center;flex-wrap:wrap"><span class="t-label num" id="cnt"></span>
@@ -1439,19 +1454,32 @@ all(args){
   function render(){
     const words = q.split(/\s+/).map(norm).filter(Boolean);
     const qf = quickMatch(quick);
-    const rows = allR().filter(r => r.rg === S.region && (!cat || r.c === cat) && qf(r) && words.every(w => hay(r).includes(w)))
-      .map(r => ({r, s:stats(r.id)})).sort(sort === "near"
+    /* 10/07 피드백: 메뉴 이름이 식당 정보에 없으면 그 메뉴의 식당 종류로 넓혀서 찾아요 (예: 짬뽕 → 중식) */
+    const cmp = sort === "near"
       ? (a,b) => (a.r.wk ?? 999) - (b.r.wk ?? 999) || a.r.n.localeCompare(b.r.n, "ko")
-      : (a,b) => b.s.tot - a.s.tot || (a.r.wk ?? 999) - (b.r.wk ?? 999));
+      : (a,b) => b.s.tot - a.s.tot || (a.r.wk ?? 999) - (b.r.wk ?? 999);
+    const direct = [], related = [];
+    for(const r of allR()){
+      if(r.rg !== S.region || (cat && r.c !== cat) || !qf(r)) continue;
+      const h = hay(r); let wide = false;
+      const ok = words.every(w => h.includes(w) || ((menuCats(w) || []).includes(r.c) && (wide = true)));
+      if(ok) (wide ? related : direct).push({r, s:stats(r.id)});
+    }
+    direct.sort(cmp); related.sort(cmp);
+    const rows = direct.concat(related);
     const filtered = words.length || cat || quick.length;
     $("#cnt").textContent = filtered ? `찾은 맛집 ${rows.length}곳` : `맛집 ${rows.length}곳`;
+    const wideWords = words.filter(w => menuCats(w) && related.some(({r}) => !hay(r).includes(w)));
+    const wideNote = related.length && wideWords.length
+      ? `<div class="infobox" style="margin-bottom:10px">‘${esc(wideWords.join(" "))}’ 메뉴가 적힌 맛집${direct.length ? ` ${direct.length}곳 다음에` : "은 아직 없어서"} 같은 종류(${esc([...new Set(wideWords.flatMap(menuCats))].join("·"))}) 맛집 ${related.length}곳${direct.length ? "도" : "을"} 보여드려요.</div>`
+      : "";
     if(!rows.length){
       $("#list").innerHTML = filtered
         ? `<div class="card state"><span class="state__emoji" aria-hidden="true">🍽️</span><h2 class="t-heading">찾는 맛집이 아직 족보에 없어요.</h2><p class="t-sub" style="margin:0">다른 이름이나 종류로 찾아보세요.</p><button class="btn btn--primary" type="button" id="reg">맛집 등록하기</button></div>`
         : `<div class="card state"><span class="state__emoji" aria-hidden="true">🍽️</span><h2 class="t-heading">아직 등록된 맛집이 없어요.</h2><button class="btn btn--primary" type="button" id="reg">맛집 등록하기</button></div>`;
       $("#reg").onclick = () => go("register"); return;
     }
-    $("#list").innerHTML = `<div class="card"><ul class="all-list">${rows.slice(0, shown).map(({r,s}) => {
+    $("#list").innerHTML = `${wideNote}<div class="card"><ul class="all-list">${rows.slice(0, shown).map(({r,s}) => {
       const meta = [r.wk && r.bp ? `${esc(r.bp)}에서 도보 약 ${r.wk}분` : null, priceLine(r), r.m ? esc(r.m) : null].filter(Boolean).join(" · ");
       return `<li class="all-item"><button type="button" class="all-item__btn" data-rid="${esc(r.id)}" aria-label="${esc(r.n)}, ${meta}, 추천 ${s.tot}">
         ${pic(r, "list")}<span class="all-item__body"><span class="all-item__name"><span>${esc(r.n)}</span><span class="badge">${esc(r.c)}</span></span><span class="all-item__meta num">${meta}</span></span>
