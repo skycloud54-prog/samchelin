@@ -90,7 +90,7 @@ revoke update, delete, truncate on public.restaurants, public.events from anon, 
 grant select, insert on public.restaurants, public.events to anon, authenticated;
 grant select on public.event_counts to anon, authenticated;
 
--- 6) 대표 사진 (가안, 2026-10-07 추가) — 여러 번 실행해도 안전해요.
+-- 6) 대표 사진 (2026-10-07 추가, 팀 회의 확정) — 여러 번 실행해도 안전해요.
 --    사진 파일은 Storage 버킷 restaurant-photos 에, 식당 표에는 저장 경로만 넣어요.
 --    누구나 보기·올리기만 가능, 덮어쓰기·삭제는 불가 (식당 표와 같은 원칙).
 alter table public.restaurants add column if not exists photo_path text;
