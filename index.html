@@ -1215,6 +1215,9 @@ register(){
 find(args){
   const sel = Object.assign({t:null, p:null, b:null}, args.sel || {});
   let cands = [], cur = null, shownFor = null;
+  /* 10/07 피드백: 본 맛집 기록 → 이전 맛집 보기 / 다음 맛집 보기 */
+  let hist = [], idx = -1;
+  const saveHist = () => { current.args.hist = hist.map(r => r.id); current.args.idx = idx; };
   view.innerHTML = `<section class="screen">
     ${topbar("")}
     <div class="head"><h1 class="t-title">맛집 찾기</h1><p class="t-caption" style="margin:0">조건을 고르면 오늘 갈 맛집을 추천해드려요.</p></div>
@@ -1239,9 +1242,9 @@ find(args){
   }
   $$("#filters .chips").forEach(g => bindChipGroup(g, v => {
     sel[g.dataset.k] = g.dataset.k === "p" ? +v : v; summary();
-    if(shownFor && shownFor !== key()){ shownFor = null; cur = null; $("#res").innerHTML = `<div class="infobox">조건을 바꿨어요. ‘오늘 여기!’를 눌러 다시 추천받으세요.</div>`; }
+    if(shownFor && shownFor !== key()){ shownFor = null; cur = null; hist = []; idx = -1; saveHist(); $("#res").innerHTML = `<div class="infobox">조건을 바꿨어요. ‘오늘 여기!’를 눌러 다시 추천받으세요.</div>`; }
   }));
-  $("#reset").onclick = () => { Object.assign(sel, {t:null,p:null,b:null}); $$("#filters .chip").forEach(c => c.setAttribute("aria-checked","false")); summary(); $("#res").innerHTML = ""; shownFor = null; cur = null; };
+  $("#reset").onclick = () => { Object.assign(sel, {t:null,p:null,b:null}); $$("#filters .chip").forEach(c => c.setAttribute("aria-checked","false")); summary(); $("#res").innerHTML = ""; shownFor = null; cur = null; hist = []; idx = -1; saveHist(); };
   const toFilters = () => $("#filters").scrollIntoView({behavior:"smooth", block:"start"});
 
   function render(r, note){
@@ -1272,25 +1275,38 @@ find(args){
         <div class="infobox" style="margin-top:10px">${r.tip ? esc(r.tip) : "아직 한 줄 팁이 없어요. 방문 후 남겨주세요."}</div>
         <div class="duo">${mapBtn(r)}<button class="btn btn--secondary" type="button" data-a="detail">방문 팁 보기</button></div>
         ${note ? `<p class="t-caption" style="margin:10px 0 0;text-align:center">이 조건에 맞는 다른 맛집은 아직 없어요.</p><button class="btn btn--text" type="button" data-a="filters" style="width:100%">조건 바꾸기</button>`
-               : `<button class="btn btn--text" type="button" data-a="next" style="width:100%;margin-top:4px">다른 맛집 보기</button>`}
+               : `<div class="duo" style="margin-top:4px"><button class="btn btn--text" type="button" data-a="prev"${idx > 0 ? "" : " disabled"}>${icon("chevron-left")}이전 맛집 보기</button><button class="btn btn--text" type="button" data-a="next">다음 맛집 보기${icon("chevron-right")}</button></div>`}
       </article>`;
       announce(`${r.n} 맛집을 추천했어요.`);
     }
     $$("[data-a]", res).forEach(b => b.onclick = () => ({
-      reg: () => go("register"), filters: toFilters, next: pick,
+      reg: () => go("register"), filters: toFilters, next: pick, prev: back,
       detail: () => go("detail", {rid:cur.id}),
     })[b.dataset.a]());
   }
+  function back(){ if(idx > 0){ cur = hist[--idx]; saveHist(); render(cur); } }
   function pick(first){
     shownFor = key();
     if(!cands.length){ cur = null; render(null); }
     else if(cands.length === 1){ cur = cands[0]; render(cur, true); }
-    else { const pool = cands.filter(r => r !== cur); cur = pool[Math.floor(Math.random() * pool.length)]; render(cur); }
+    else if(first !== true && idx < hist.length - 1){ cur = hist[++idx]; render(cur); }   // 이전으로 갔다가 다시 '다음' → 봤던 순서 그대로
+    else {
+      if(first === true){ hist = []; idx = -1; }
+      const seen = new Set(hist.map(r => r.id));
+      let pool = cands.filter(r => !seen.has(r.id));            // 아직 안 본 맛집 우선
+      if(!pool.length) pool = cands.filter(r => r.id !== cur?.id); // 다 봤으면 직전 식당만 빼고
+      cur = pool[Math.floor(Math.random() * pool.length)];
+      hist = hist.slice(0, idx + 1); hist.push(cur); idx = hist.length - 1; render(cur);
+    }
+    saveHist();
     if(first === true) $("#res").scrollIntoView({behavior:"smooth", block:"start"});
   }
   $("#go").onclick = () => { const b = $("#go"); busy(b, "조건에 맞는 맛집을 찾고 있어요."); setTimeout(() => { unbusy(b); pick(true); }, 350); };
   summary();
-  if(args.cur){ cur = getR(args.cur); if(cur && ready()){ shownFor = key(); render(cur, cands.length === 1); } }
+  if(args.cur){ cur = getR(args.cur); if(cur && ready()){ shownFor = key();
+    hist = (args.hist || []).map(getR).filter(Boolean); idx = hist.findIndex(r => r.id === cur.id);   // 상세에서 돌아와도 기록 유지
+    if(idx < 0){ hist = [cur]; idx = 0; }
+    render(cur, cands.length === 1); } }
   $("#res").addEventListener("click", () => { current.args.cur = cur?.id; }, true);
   screenRefresh = () => { if(ready()) { const n = match().length; if(n !== cands.length) summary(); } };
 },
