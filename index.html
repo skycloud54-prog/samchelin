@@ -360,9 +360,6 @@ body.has-nav .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 .tabbar button{background:none;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--color-text-sub);font:600 11px/1 var(--font-sans)}
 .tabbar button[aria-current="page"]{color:#D04A02}
 .tabbar .ico{width:22px;height:22px}
-.tabbar__add span:first-child{width:50px;height:50px;margin-top:-26px;border-radius:50%;background:var(--sun);border:1.6px solid var(--ink);box-shadow:0 3px 0 var(--ink);display:flex;align-items:center;justify-content:center;color:var(--ink)}
-.tabbar__add .ico{width:24px;height:24px;stroke-width:2.6}
-.tabbar__add{color:var(--ink)!important}
 
 /* 등록 화면 */
 .banner{display:flex;gap:8px;align-items:flex-start;background:var(--peach);border-radius:12px;padding:12px 14px;font-size:14px;line-height:21px}
@@ -387,6 +384,8 @@ body.has-nav .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 
 /* 오늘 여기 결과: 오늘의 픽 스티커 */
 .result-card{position:relative;border:1.6px solid var(--ink);box-shadow:4px 4px 0 var(--sun)}
+.mini-map{height:180px;border-radius:12px;border:1.6px solid var(--ink);overflow:hidden;background:#EFE9E1}
+.hq-tag{background:var(--ink);color:#fff;font:700 12px/1 var(--font-sans);padding:6px 9px;border-radius:8px;border:2px solid #fff;white-space:nowrap}
 .pick-badge{position:absolute;top:-14px;right:-6px;width:68px;height:68px;border-radius:50%;background:var(--sun);border:1.6px solid var(--ink);display:flex;align-items:center;justify-content:center;text-align:center;font:400 15px/1.1 var(--font-display);transform:rotate(12deg);z-index:2;box-shadow:0 3px 0 rgba(55,53,47,.2)}
 </style>
 
@@ -433,7 +432,7 @@ body.has-nav .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 <nav class="tabbar" id="tabbar" aria-label="주요 메뉴">
   <button type="button" data-tab="home"><svg class="ico" aria-hidden="true"><use href="#i-home"/></svg>홈</button>
   <button type="button" data-tab="all"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg>검색</button>
-  <button type="button" data-tab="register" class="tabbar__add"><span><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg></span>등록</button>
+  <button type="button" data-tab="register"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>등록</button>
   <button type="button" data-tab="find"><svg class="ico" aria-hidden="true"><use href="#i-utensils"/></svg>오늘 여기</button>
 </nav>
 <div class="toast" id="toast" role="status" aria-live="polite"><svg class="ico ico--16"><use href="#i-check-circle"/></svg><span id="toast-msg"></span></div>
@@ -474,6 +473,8 @@ function baseTime(now){ const k = kst(now); let b = Date.UTC(k.y, k.m-1, k.d, 18
 /* 실시간 집계(10/06 변경): 최근 3일 = 지금부터 72시간 전까지. 샘플은 "지금 기준 hb시간 전"으로 놓아 순위가 항상 같게 보여요 */
 const LOADED = Date.now();
 SAMPLE.E.forEach(e => { e.ts = LOADED - e.hb * H; });
+/* 가상 식당의 도보 시간도 '본사 기준'으로 표시 (가상 값이라 분 수는 그대로) */
+SAMPLE.R.forEach(r => { if(r.bp === "용산역") r.bp = "본사"; });
 const inWindow = ts => ts >= Date.now() - 72*H && ts <= Date.now() + 5*60e3;
 
 /* 유틸 */
@@ -506,9 +507,11 @@ const S = {
 };
 let local = lsGet("sg.data.v2", {R:[], E:[]});
 
-/* 지역 기준점: 카카오 검색 중심 + 도보 시간 계산(용산만). 양평 A 현장은 코드명이라 도보 기준점 없음 */
+/* 지역 기준점: 카카오 검색 중심 + 도보 시간 계산(용산만). 양평 A 현장은 코드명이라 도보 기준점 없음
+   용산 기준점 = 본사(아모레퍼시픽그룹 본사, 한강대로 100 · 카카오 장소 좌표, 10/07 변경: 기존 용산역)
+   도보 시간 = 직선거리 × 1.3(골목 우회) ÷ 분당 67m. 카카오는 도보 길찾기 API를 공개하지 않아서 예상값이에요 */
 const BASE_PT = {
-  DEMO_YONGSAN:      {name:"용산역", lat:37.5299, lng:126.9648, radius:2000},
+  DEMO_YONGSAN:      {name:"본사", lat:37.52879, lng:126.96867, radius:2000},
   DEMO_YANGPYEONG_A: {name:null,     lat:37.4925, lng:127.4919, radius:20000},
 };
 function distM(a, b){ const R6 = 6371000, t = Math.PI/180, dLat = (b.lat-a.lat)*t, dLng = (b.lng-a.lng)*t;
@@ -517,7 +520,7 @@ function fromRow(x){
   const bp = BASE_PT[x.region_id]; let wk = null;
   if(bp && bp.name && x.lat && x.lng){ wk = Math.max(1, Math.round(distM(bp, {lat:x.lat, lng:x.lng}) * 1.3 / 67)); if(wk > 30) wk = null; }
   return {id:x.id, n:x.name, rg:x.region_id, c:x.category_label || "기타", a:x.address, t:x.time_slots, p:x.max_party, w:null, b:x.price_band,
-    m:x.menu, g:x.tags || "", tip:x.tip, h:null, wk, bp:wk ? bp.name : null, link:x.map_link, pid:x.place_id, src:x.provider, by:x.created_by, ph:photoUrl(x.photo_path), pht:photoUrl(x.photo_path, true)};
+    m:x.menu, g:x.tags || "", tip:x.tip, h:null, wk, bp:wk ? bp.name : null, lat:x.lat, lng:x.lng, link:x.map_link, pid:x.place_id, src:x.provider, by:x.created_by, ph:photoUrl(x.photo_path), pht:photoUrl(x.photo_path, true)};
 }
 
 /* 샘플 집계(한 번만) */
@@ -776,6 +779,32 @@ const safeLink = u => /^https?:\/\/place\.map\.kakao\.com\//.test(u || "") ? u :
 const mapBtn = (r, style="") => safeLink(r.link)
   ? `<a class="btn btn--secondary" href="${esc(safeLink(r.link))}" target="_blank" rel="noopener" style="${style}">${icon("map")}지도에서 보기</a>`
   : `<button class="btn btn--disabled" type="button" disabled style="${style}">지도 정보 준비 중</button>`;
+
+/* 식당 정보 지도 (10/07): 카카오 지도에 식당 핀 + 본사 표시. 누르면 카카오맵 장소 페이지가 열려요.
+   좌표가 있는 식당(카카오에서 고른 곳)만 그리고, 지도가 안 뜨면(키 없음·로컬 연습 등) 자리를 치워요 */
+const hasMap = r => Number.isFinite(+r.lat) && Number.isFinite(+r.lng) && r.lat != null && r.lng != null;
+const kName = s => String(s || "").replace(/[,/]/g, " ").trim();
+function walkLink(r){
+  const bp = BASE_PT[r.rg]; if(!bp || !bp.name || !hasMap(r)) return null;
+  return `https://map.kakao.com/link/by/walk/${encodeURIComponent(bp.name)},${bp.lat},${bp.lng}/${encodeURIComponent(kName(r.n))},${+r.lat},${+r.lng}`;
+}
+function drawMiniMap(el, r, tries=0){
+  if(!el || !el.isConnected) return;
+  if(!(S.places && window.kakao && kakao.maps && kakao.maps.Map)){
+    if(tries < 25) return void setTimeout(() => drawMiniMap(el, r, tries + 1), 200);
+    return void el.remove();
+  }
+  const pos = new kakao.maps.LatLng(+r.lat, +r.lng);
+  const map = new kakao.maps.Map(el, {center:pos, level:3, draggable:false, scrollwheel:false, disableDoubleClickZoom:true, keyboardShortcuts:false});
+  new kakao.maps.Marker({map, position:pos, title:r.n});
+  const bp = BASE_PT[r.rg];
+  if(bp && bp.name){
+    const hq = new kakao.maps.LatLng(bp.lat, bp.lng);
+    new kakao.maps.CustomOverlay({map, position:hq, content:`<div class="hq-tag">${esc(bp.name)}</div>`, yAnchor:.5});
+    if(distM(bp, {lat:+r.lat, lng:+r.lng}) < 2500){ const b = new kakao.maps.LatLngBounds(); b.extend(pos); b.extend(hq); map.setBounds(b, 48, 40, 32, 40); }
+  }
+  const u = safeLink(r.link); if(u){ el.style.cursor = "pointer"; el.onclick = () => window.open(u, "_blank", "noopener"); }
+}
 const privacy = () => `<div class="infobox infobox--row">${icon("info","ico ico--16")}실명, 연락처, 고객사 정보는 입력하지 마세요.</div>`;
 
 function bindCommon(){
@@ -909,8 +938,8 @@ home(){
 
 /* ---------------- S02 맛집 등록 ---------------- */
 register(){
-  const F = {name:"", picked:null, kakao:null, manual:false, addr:"", t:new Set(), p:null, b:null, c:null, m:"", tip:"", g:new Set(), photo:null};
-  const dirty = () => F.name || F.picked || F.kakao || F.addr || F.t.size || F.p || F.b || F.c || F.m || F.tip || F.g.size || F.photo;
+  const F = {name:"", picked:null, kakao:null, manual:false, addr:"", t:new Set(), p:new Set(), b:null, c:null, m:"", tip:"", g:new Set(), photo:null};
+  const dirty = () => F.name || F.picked || F.kakao || F.addr || F.t.size || F.p.size || F.b || F.c || F.m || F.tip || F.g.size || F.photo;
   current.onBack = () => {
     if(!dirty()) return back();
     sheet(`<h2 class="t-heading">작성 중인 내용을 나갈까요?</h2><p class="t-sub" style="margin:0">나가면 입력한 내용이 사라져요.</p>
@@ -936,8 +965,8 @@ register(){
       <div class="field" id="fd-t"><span class="field__label" id="lb-t">시간대</span><span class="t-caption">추천하는 식사 시간대를 선택해주세요.</span>
         <div class="chips" id="ch-t" aria-labelledby="lb-t">${TIME.map(([v,l]) => chipBtn(v,l,false,"multi")).join("")}</div>
         <div class="field__meta"><span class="field__error">${icon("alert-circle")}시간대를 하나 이상 선택해주세요.</span></div></div>
-      <div class="field" id="fd-p"><span class="field__label" id="lb-p">함께 식사할 인원</span><span class="t-caption">몇 명까지 함께 먹기 좋나요?</span>
-        <div class="chips" id="ch-p" role="radiogroup" aria-labelledby="lb-p">${PARTY.map(([v,l]) => chipBtn(v,l,false)).join("")}</div>
+      <div class="field" id="fd-p"><span class="field__label" id="lb-p">함께 식사할 인원</span><span class="t-caption">함께 먹기 좋은 인원을 모두 골라주세요.</span>
+        <div class="chips" id="ch-p" aria-labelledby="lb-p">${PARTY.map(([v,l]) => chipBtn(v,l,false,"multi")).join("")}</div>
         <div class="field__meta"><span class="field__error">${icon("alert-circle")}함께 식사할 인원을 선택해주세요.</span></div></div>
       <div class="field" id="fd-b"><span class="field__label" id="lb-b">1인 가격대</span><span class="t-caption">대표 메뉴 1인 가격을 기준으로 골라주세요.</span>
         <div class="chips" id="ch-b" role="radiogroup" aria-labelledby="lb-b">${BAND.map(([v,l]) => chipBtn(v,l,false)).join("")}</div>
@@ -1067,7 +1096,8 @@ register(){
   refreshPlaces = () => { if(current.name === "register" && !F.picked && !F.kakao && !F.manual && $("#name-box")) renderName(); };
 
   bindChipGroup($("#ch-t"), (v,on) => { on ? F.t.add(v) : F.t.delete(v); $("#fd-t").classList.toggle("is-error", false); });
-  bindChipGroup($("#ch-p"), v => { F.p = +v; $("#fd-p").classList.remove("is-error"); });
+  /* 인원: 여러 개 선택 · 다시 누르면 취소. DB에는 고른 것 중 가장 큰 인원(최대 인원)을 저장해요 */
+  bindChipGroup($("#ch-p"), (v,on) => { on ? F.p.add(+v) : F.p.delete(+v); $("#fd-p").classList.remove("is-error"); });
   bindChipGroup($("#ch-b"), v => { F.b = v; $("#fd-b").classList.remove("is-error"); });
   bindChipGroup($("#ch-c"), v => { F.c = v; });
   bindChipGroup($("#ch-g"), (v,on) => { on ? F.g.add(v) : F.g.delete(v); });
@@ -1084,7 +1114,7 @@ register(){
       else if(!nm) setNameErr("식당 이름을 입력해주세요."); else if(len(nm) > 30) setNameErr("식당 이름은 30자 이내로 작성해주세요.");
     }
     if(!F.t.size){ $("#fd-t").classList.add("is-error"); errs.push($("#fd-t")); }
-    if(!F.p){ $("#fd-p").classList.add("is-error"); errs.push($("#fd-p")); }
+    if(!F.p.size){ $("#fd-p").classList.add("is-error"); errs.push($("#fd-p")); }
     if(!F.b){ $("#fd-b").classList.add("is-error"); errs.push($("#fd-b")); }
     if(len(F.m.trim()) > 30) errs.push($("#fd-m"));
     if(len(F.tip.trim()) > 100) errs.push($("#fd-tip"));
@@ -1096,7 +1126,7 @@ register(){
     try{
       if(!existingId){
         const p = F.kakao;
-        const row = {region_id:S.region, time_slots:[...F.t].join(","), max_party:F.p, price_band:F.b,
+        const row = {region_id:S.region, time_slots:[...F.t].join(","), max_party:Math.max(...F.p), price_band:F.b,
           menu:F.m.trim() || null, tags:[...F.g].join(","), tip:F.tip.trim() || null,
           category_label: F.c ? lab(CATS, F.c) : (p ? kakaoCat(p.category_name) : "기타"),
           name: p ? [...p.place_name].slice(0,30).join("") : nm,
@@ -1254,10 +1284,12 @@ detail({rid}){
       <div class="info-lines">
         ${r.m ? `<div class="info-line">${icon("utensils")}추천 메뉴 · ${esc(r.m)}</div>` : ""}
         <div class="info-line num">${icon("wallet")}${priceLine(r)}</div>
-        ${r.wk && r.bp ? `<div class="info-line num">${icon("footprints")}${esc(r.bp)}에서 도보 약 ${r.wk}분</div>` : ""}
+        ${r.wk && r.bp ? `<div class="info-line num">${icon("footprints")}${esc(r.bp)}에서 도보 약 ${r.wk}분</div>${hasMap(r) ? `<p class="t-caption" style="margin:0 0 4px 24px">직선거리로 계산한 예상 시간이에요.</p>` : ""}` : ""}
         ${r.h ? `<div class="info-line num">${icon("clock")}영업시간 · ${esc(r.h)}</div><p class="t-caption" style="margin:2px 0 10px 24px">방문 전 영업시간을 확인해주세요.</p>` : `<div style="height:10px"></div>`}
       </div>
-      ${mapBtn(r, "width:100%")}
+      ${hasMap(r) ? `<div class="mini-map" id="mini-map" role="img" aria-label="${esc(r.n)} 위치 지도${r.bp ? `, ${esc(r.bp)} 표시` : ""}"></div>
+        ${walkLink(r) ? `<div class="duo" style="margin-top:8px">${mapBtn(r)}<a class="btn btn--secondary" href="${esc(walkLink(r))}" target="_blank" rel="noopener">${icon("footprints")}${esc(r.bp || "본사")}에서 길찾기</a></div>` : mapBtn(r, "width:100%;margin-top:8px")}`
+        : mapBtn(r, "width:100%")}
       ${r.src === "kakao" ? `<p class="t-caption" style="margin:8px 0 0;text-align:center">장소 정보 출처: 카카오맵</p>` : ""}
     </div>
     <div class="stack" style="gap:6px"><h2 class="t-label">한 줄 팁</h2>
@@ -1289,6 +1321,7 @@ detail({rid}){
     </div>
   </section>`;
   bindCommon();
+  drawMiniMap($("#mini-map"), r);
   const input = $("#in-c"), nick = $("#in-nick");
   bindCounter($("#fd-c"), () => { $("#er-c").textContent = "방문 팁은 200자 이내로 작성해주세요."; });
   nick.value = lsGet("sg.nick", "");
