@@ -7,7 +7,7 @@
 -- 1) 식당 표
 create table if not exists public.restaurants (
   id             text primary key default ('r-' || replace(gen_random_uuid()::text, '-', '')),
-  region_id      text not null check (region_id in ('DEMO_YONGSAN', 'DEMO_YANGPYEONG_A')),
+  region_id      text not null check (region_id in ('DEMO_YONGSAN', 'DEMO_YANGPYEONG_A', 'DEMO_YEOUIDO')),
   name           text not null check (char_length(btrim(name)) between 1 and 30),
   category_label text check (char_length(category_label) <= 20),
   address        text check (char_length(address) <= 100),
@@ -96,7 +96,7 @@ grant select on public.event_counts to anon, authenticated;
 alter table public.restaurants add column if not exists photo_path text;
 alter table public.restaurants drop constraint if exists restaurants_photo_path_check;
 alter table public.restaurants add constraint restaurants_photo_path_check
-  check (photo_path ~ '^(DEMO_YONGSAN|DEMO_YANGPYEONG_A)/[0-9a-f-]{36}\.jpg$');
+  check (photo_path ~ '^(DEMO_YONGSAN|DEMO_YANGPYEONG_A|DEMO_YEOUIDO)/[0-9a-f-]{36}\.jpg$');
 
 -- 공개 버킷: 사진 주소로 바로 볼 수 있음. 2MB 이하 JPEG만
 -- 앱이 올리기 전에 줄여서 사진 1장당 두 파일: 큰 사진 <uuid>.jpg(보통 150KB 안팎) + 썸네일 <uuid>_t.jpg(20KB 안팎)
@@ -108,4 +108,34 @@ on conflict (id) do update
 drop policy if exists "photos_insert" on storage.objects;
 create policy "photos_insert" on storage.objects for insert to anon, authenticated
   with check (bucket_id = 'restaurant-photos'
-              and name ~ '^(DEMO_YONGSAN|DEMO_YANGPYEONG_A)/[0-9a-f-]{36}(_t)?\.jpg$');
+              and name ~ '^(DEMO_YONGSAN|DEMO_YANGPYEONG_A|DEMO_YEOUIDO)/[0-9a-f-]{36}(_t)?\.jpg$');
+
+-- 7) 지역 3곳 + 지역 검증 (2026-10-07 추가) — 여러 번 실행해도 안전해요.
+--    지역: DEMO_YONGSAN 용산·신용산 / DEMO_YANGPYEONG_A 양평 블룸비스타(기존 양평 A 현장 자리) / DEMO_YEOUIDO 여의도
+--    검증: 좌표가 있는 식당(카카오에서 고른 곳)은 지역 기준점 반경 안이어야 등록돼요. 좌표가 없으면(직접 입력) 통과.
+--    기준점·반경은 앱(index.html BASE_PT)과 같아요. 바꿀 때는 두 곳을 함께 바꿔요.
+alter table public.restaurants drop constraint if exists restaurants_region_id_check;
+alter table public.restaurants add constraint restaurants_region_id_check
+  check (region_id in ('DEMO_YONGSAN', 'DEMO_YANGPYEONG_A', 'DEMO_YEOUIDO'));
+
+create or replace function public.region_ok(rg text, la double precision, ln double precision)
+returns boolean language sql immutable set search_path = '' as $$
+  with base(lat0, lng0, radius) as (
+    select v.lat0::float8, v.lng0::float8, v.radius::float8 from (values
+      ('DEMO_YONGSAN',      37.52879, 126.96867, 2000),
+      ('DEMO_YANGPYEONG_A', 37.50037, 127.42192, 5000),
+      ('DEMO_YEOUIDO',    37.52178, 126.92440, 1500)
+    ) v(id, lat0, lng0, radius) where v.id = rg
+  )
+  select coalesce((
+    select 2 * 6371000 * asin(sqrt(
+             power(sin(radians(la - lat0) / 2), 2)
+           + cos(radians(lat0)) * cos(radians(la)) * power(sin(radians(ln - lng0) / 2), 2)
+           )) <= radius
+    from base), false)
+$$;
+
+alter table public.restaurants drop constraint if exists restaurants_in_region;
+-- not valid: 이미 등록된 식당은 검사하지 않고, 앞으로 등록되는 식당만 검사해요
+alter table public.restaurants add constraint restaurants_in_region
+  check (lat is null or lng is null or public.region_ok(region_id, lat, lng)) not valid;
