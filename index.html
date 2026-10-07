@@ -13,11 +13,9 @@
   구조: ① 토큰·컴포넌트(디자인 시스템 그대로) → ② 앱 전용 CSS → ③ 데이터 → ④ 저장소 → ⑤ 화면(S01~S05)
 -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
-<!-- 제목·버튼용 둥근 글꼴 (Jua, Google Fonts · OFL) -->
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=swap">
 <!-- 앱 아이콘: 아래 로고(#i-logo)와 같은 그림을 스크립트가 채워 넣어요 -->
 <link rel="icon" id="favicon" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/images/logo-512.png">
 <style>
 /* ============================================================
    ① TOKENS — design.md 2장 그대로. 단일 라이트 테마(크림 바탕)로 고정.
@@ -268,26 +266,26 @@ a.btn{text-decoration:none}
 
 /* ============================================================
    ③ THEME — 맛집여지도 스타일 (10/07 시안, 확정 전)
-   둥근 제목 글꼴(Jua) · 먹색 테두리 + 각진 그림자 · 형광펜/물결 밑줄 · 기울어진 스티커
+   글꼴은 Pretendard 하나(10/07, 기존 Jua에서 변경 · 제목은 굵게) · 먹색 테두리 + 각진 그림자 · 형광펜/물결 밑줄 · 기울어진 스티커
    기능 클래스는 그대로 두고 겉모습만 덮어써요. 이 블록을 지우면 예전 모습으로 돌아가요
    ============================================================ */
 :root{
   --ink:#37352F; --sun:#FFB600; --hl:#FFE08A; --peach:#FBEBDD; --butter:#FDF1D3; --sec:#C25E0A;
-  --font-display:"Jua",var(--font-sans);
+  --font-display:var(--font-sans);
   --color-text:var(--ink); --color-bg:#FFFBF6; --color-border:#EBE2D8;
   --color-brand-600:#C8460A; --color-brand-700:#A3380A;
   --shadow-card:none; --shadow-pop:3px 3px 0 var(--ink);
 }
-.t-display,.t-title,.t-heading,.rank-card__name,.result-card__name h2{font-family:var(--font-display);font-weight:400;letter-spacing:0}
-.t-display{font-size:30px;line-height:40px}
-.t-title{font-size:25px;line-height:34px}
-.t-heading{font-size:19px;line-height:27px}
+.t-display,.t-title,.t-heading,.rank-card__name,.result-card__name h2{font-family:var(--font-display);font-weight:800;letter-spacing:-.03em}
+.t-display{font-size:28px;line-height:38px}
+.t-title{font-size:23px;line-height:32px}
+.t-heading{font-size:18px;line-height:26px}
 .hl{background:linear-gradient(transparent 58%,var(--hl) 58%);padding:0 2px}
-.sec-title{font:400 24px/32px var(--font-display);color:var(--sec);text-decoration:underline wavy var(--sun) 2px;text-underline-offset:7px;margin:0}
-.sticker{display:inline-block;font:400 14px/1 var(--font-display);background:var(--sun);color:var(--ink);border-radius:8px;padding:7px 10px;transform:rotate(4deg);box-shadow:0 3px 0 rgba(55,53,47,.18);white-space:nowrap}
+.sec-title{font:800 21px/30px var(--font-display);letter-spacing:-.03em;color:var(--sec);text-decoration:underline wavy var(--sun) 2px;text-underline-offset:7px;margin:0}
+.sticker{display:inline-block;font:800 13px/1 var(--font-display);background:var(--sun);color:var(--ink);border-radius:8px;padding:7px 10px;transform:rotate(4deg);box-shadow:0 3px 0 rgba(55,53,47,.18);white-space:nowrap}
 
 /* 버튼 · 칩 · 입력 */
-.btn--primary{background:#D04A02;border:1.6px solid var(--ink);box-shadow:var(--shadow-pop);font:400 18px/1 var(--font-display);border-radius:14px;transition:transform .08s,box-shadow .08s}
+.btn--primary{background:#D04A02;border:1.6px solid var(--ink);box-shadow:var(--shadow-pop);font:700 16px/1 var(--font-display);border-radius:14px;transition:transform .08s,box-shadow .08s}
 .btn--primary:hover{background:#B93F02}
 .btn--primary:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink);background:#B93F02}
 .btn--primary:disabled{border-color:#CFC6BE;box-shadow:none;font-family:var(--font-display)}
@@ -307,8 +305,8 @@ a.btn{text-decoration:none}
 .region-chip{border-color:#DDD2C7}
 
 /* 로고 */
-.logo{display:inline-flex;align-items:center;gap:8px;font:400 22px/1 var(--font-display);color:var(--ink);text-decoration:none;background:none;border:0;padding:0}
-.logo svg{width:34px;height:40px;flex:none}
+.logo{display:inline-flex;align-items:center;gap:8px;font:800 20px/1 var(--font-display);letter-spacing:-.03em;color:var(--ink);text-decoration:none;background:none;border:0;padding:0}
+.logo svg{width:40px;height:40px;flex:none}
 .logo em{font-style:normal;color:#D04A02}
 .logo__txt{display:flex;flex-direction:column;gap:3px}
 .logo small{font:600 11px/1 var(--font-sans);color:var(--color-text-sub);letter-spacing:.02em}
@@ -321,17 +319,17 @@ a.btn{text-decoration:none}
 .tile:hover,.tile:focus-visible{transform:rotate(0) translateY(-2px)}
 .tile .ico{width:24px;height:24px;color:#D04A02;margin-bottom:4px}
 .tile:nth-child(2) .ico{color:#B88400}
-.tile b{font:400 19px/26px var(--font-display)}
+.tile b{font:800 17px/24px var(--font-display);letter-spacing:-.03em}
 .tile span{font:var(--text-caption);color:var(--color-text-sub)}
 
 /* 홈: 내 족보 도장 */
 .stamp-card{position:relative;background:#F7F1EA;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
 .stamp-card .sticker{position:absolute;top:-12px;right:14px}
 .stamp-card__head{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.stamp-card__lv{font:400 18px/24px var(--font-display);color:var(--sec)}
+.stamp-card__lv{font:800 16px/24px var(--font-display);color:var(--sec)}
 .stamp-card__cnt{font:700 13px/1 var(--font-sans);background:var(--peach);color:var(--sec);border-radius:8px;padding:6px 8px}
 .stamps{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
-.stamp{aspect-ratio:1;border-radius:50%;border:2px dashed #D3C7BB;display:flex;align-items:center;justify-content:center;color:#D3C7BB;font:400 14px/1 var(--font-display)}
+.stamp{aspect-ratio:1;border-radius:50%;border:2px dashed #D3C7BB;display:flex;align-items:center;justify-content:center;color:#D3C7BB;font:700 14px/1 var(--font-display)}
 .stamp.is-on{border:2px solid var(--ink);background:#D04A02;color:var(--sun)}
 .stamp.is-on:nth-child(odd){transform:rotate(-8deg)} .stamp.is-on:nth-child(even){transform:rotate(6deg)}
 .stamp.is-on svg{width:55%;height:55%;fill:var(--sun)}
@@ -342,7 +340,7 @@ a.btn{text-decoration:none}
 /* TOP 3 */
 .rank-card{border:1px solid var(--color-border)}
 .rank-card--first{border:1.6px solid var(--ink);box-shadow:3px 3px 0 var(--sun)}
-.rank{font:400 16px/1 var(--font-display);border:1.6px solid var(--ink)}
+.rank{font:800 14px/1 var(--font-display);border:1.6px solid var(--ink)}
 .rank--1{background:#D04A02;color:#fff} .rank--2{background:var(--sun)} .rank--3{background:var(--ink);color:#fff}
 .rank-wrap{position:relative;background:#F7F1EA;border-radius:16px;padding:16px 8px 8px}
 .rank-wrap .rank-card{padding:12px;gap:10px}
@@ -370,7 +368,7 @@ body.has-nav .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 
 /* 등록 완료: 도장 쾅 */
 .done-card{border:1.6px solid var(--ink);box-shadow:4px 4px 0 var(--sun);overflow:hidden;position:relative}
-.big-stamp{width:132px;height:132px;border-radius:50%;border:3px solid #D04A02;color:#D04A02;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:400 22px/1.1 var(--font-display);transform:rotate(-10deg);animation:stamp .6s cubic-bezier(.2,1.6,.4,1) both;background:rgba(208,74,2,.06);box-shadow:inset 0 0 0 5px #fff,inset 0 0 0 7px #D04A02;margin:6px 0}
+.big-stamp{width:132px;height:132px;border-radius:50%;border:3px solid #D04A02;color:#D04A02;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:800 20px/1.15 var(--font-display);transform:rotate(-10deg);animation:stamp .6s cubic-bezier(.2,1.6,.4,1) both;background:rgba(208,74,2,.06);box-shadow:inset 0 0 0 5px #fff,inset 0 0 0 7px #D04A02;margin:6px 0}
 .big-stamp svg{width:30px;height:30px;fill:var(--sun);stroke:#D04A02;stroke-width:.4}
 .done-card .infobox .ico{width:16px;height:16px;color:inherit}
 .done-card .infobox{text-align:left}
@@ -380,13 +378,13 @@ body.has-nav .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 .confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .confetti i{position:absolute;top:-10px;width:8px;height:12px;border-radius:2px;opacity:0;animation:fall 1.4s ease-in forwards}
 @keyframes fall{0%{opacity:1;transform:translateY(0) rotate(0)}100%{opacity:0;transform:translateY(260px) rotate(540deg)}}
-.level-up{font:400 17px/24px var(--font-display);color:var(--sec)}
+.level-up{font:800 16px/24px var(--font-display);color:var(--sec)}
 
 /* 오늘 여기 결과: 오늘의 픽 스티커 */
 .result-card{position:relative;border:1.6px solid var(--ink);box-shadow:4px 4px 0 var(--sun)}
 .mini-map{height:180px;border-radius:12px;border:1.6px solid var(--ink);overflow:hidden;background:#EFE9E1}
 .hq-tag{background:var(--ink);color:#fff;font:700 12px/1 var(--font-sans);padding:6px 9px;border-radius:8px;border:2px solid #fff;white-space:nowrap}
-.pick-badge{position:absolute;top:-14px;right:-6px;width:68px;height:68px;border-radius:50%;background:var(--sun);border:1.6px solid var(--ink);display:flex;align-items:center;justify-content:center;text-align:center;font:400 15px/1.1 var(--font-display);transform:rotate(12deg);z-index:2;box-shadow:0 3px 0 rgba(55,53,47,.2)}
+.pick-badge{position:absolute;top:-14px;right:-6px;width:68px;height:68px;border-radius:50%;background:var(--sun);border:1.6px solid var(--ink);display:flex;align-items:center;justify-content:center;text-align:center;font:800 13px/1.15 var(--font-display);transform:rotate(12deg);z-index:2;box-shadow:0 3px 0 rgba(55,53,47,.2)}
 </style>
 
 </head>
@@ -409,18 +407,15 @@ body.has-nav .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
 <symbol id="i-alert-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></symbol>
 <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
-<!-- 삼슐랭 로고: 맛집 지도 핀 안의 밥그릇. 김 세 줄기 = 삼(3) + 숟가락 하나 = 일(1) → '삼일'.
-     같은 그림을 앱 아이콘(favicon)에도 써요 -->
-<symbol id="i-logo" viewBox="8 4 48 56">
-  <path d="M32 58C32 58 12 40 12 26a20 20 0 0 1 40 0c0 14-20 32-20 32z" fill="#D04A02"/>
-  <circle cx="32" cy="27" r="13.5" fill="#fff"/>
-  <path d="M40.6 26.4 43.6 15.6" stroke="#37352F" stroke-width="1.9" stroke-linecap="round"/>
-  <ellipse cx="44" cy="14.4" rx="2" ry="2.8" transform="rotate(16 44 14.4)" fill="#FFB600" stroke="#37352F" stroke-width="1.3"/>
-  <path d="M21.5 28H42.5A10.5 9 0 0 1 21.5 28Z" fill="#FFB600"/>
-  <path d="M20 28H44" stroke="#37352F" stroke-width="2.4" stroke-linecap="round"/>
-  <g fill="none" stroke="#37352F" stroke-width="2" stroke-linecap="round">
-    <path d="M25.5 24c1.8-1.8-1.4-3.2.4-5.4"/><path d="M31 24c1.8-1.8-1.4-3.2.4-5.4s-1.4-2.6.2-4.2"/><path d="M36.5 24c1.8-1.8-1.4-3.2.4-5.4"/>
+<!-- 삼슐랭 로고 (10/07 팀 시안): 별이 든 지도 핀. 핀 주황 = 삼일PwC 대표 주황 #D04A02 (시안 원본 #E94102에서 맞춤)
+     원본 파일: images/logo.svg (홈 화면 아이콘 PNG: images/logo-512.png). 같은 그림을 탭 아이콘(favicon)에도 써요 -->
+<symbol id="i-logo" viewBox="5 4 54 54">
+  <g stroke="#451003" stroke-linejoin="round">
+    <path d="M32 55C24 45.5 14.6 34 14.6 25.2a17.4 17.4 0 0 1 34.8 0c0 8.8-9.4 20.3-17.4 29.8z" fill="#D04A02" stroke-width="2.3"/>
+    <circle cx="32" cy="25.5" r="10.8" fill="#FFFDF8" stroke-width="2"/>
+    <polygon transform="translate(32 26.1) scale(1.46)" points="0,-5 1.32,-1.82 4.76,-1.55 2.14,.7 2.94,4.05 0,2.25 -2.94,4.05 -2.14,.7 -4.76,-1.55 -1.32,-1.82" fill="#FED20D" stroke-width="1.25"/>
   </g>
+  <ellipse cx="31" cy="24.9" rx="1.15" ry=".75" transform="rotate(-30 31 24.9)" fill="#fff"/>
 </symbol>
 <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></symbol>
 <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></symbol>
