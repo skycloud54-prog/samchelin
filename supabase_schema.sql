@@ -89,3 +89,23 @@ create policy "insert_all" on public.events      for insert to anon, authenticat
 revoke update, delete, truncate on public.restaurants, public.events from anon, authenticated;
 grant select, insert on public.restaurants, public.events to anon, authenticated;
 grant select on public.event_counts to anon, authenticated;
+
+-- 6) 대표 사진 (가안, 2026-10-07 추가) — 여러 번 실행해도 안전해요.
+--    사진 파일은 Storage 버킷 restaurant-photos 에, 식당 표에는 저장 경로만 넣어요.
+--    누구나 보기·올리기만 가능, 덮어쓰기·삭제는 불가 (식당 표와 같은 원칙).
+alter table public.restaurants add column if not exists photo_path text;
+alter table public.restaurants drop constraint if exists restaurants_photo_path_check;
+alter table public.restaurants add constraint restaurants_photo_path_check
+  check (photo_path ~ '^(DEMO_YONGSAN|DEMO_YANGPYEONG_A)/[0-9a-f-]{36}\.jpg$');
+
+-- 공개 버킷: 사진 주소로 바로 볼 수 있음. 2MB 이하 JPEG만
+-- 앱이 올리기 전에 줄여서 사진 1장당 두 파일: 큰 사진 <uuid>.jpg(보통 150KB 안팎) + 썸네일 <uuid>_t.jpg(20KB 안팎)
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('restaurant-photos', 'restaurant-photos', true, 2097152, array['image/jpeg'])
+on conflict (id) do update
+  set public = excluded.public, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "photos_insert" on storage.objects;
+create policy "photos_insert" on storage.objects for insert to anon, authenticated
+  with check (bucket_id = 'restaurant-photos'
+              and name ~ '^(DEMO_YONGSAN|DEMO_YANGPYEONG_A)/[0-9a-f-]{36}(_t)?\.jpg$');
