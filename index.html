@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
 <!-- 앱 아이콘: 아래 로고(#i-logo)와 같은 그림을 스크립트가 채워 넣어요 -->
 <link rel="icon" id="favicon" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/images/logo-512.png">
+<link rel="apple-touch-icon" href="images/logo-512.png">
 <style>
 /* ============================================================
    ① TOKENS — design.md 2장 그대로. 단일 라이트 테마(크림 바탕)로 고정.
@@ -271,8 +271,7 @@ a.btn{text-decoration:none}
    ============================================================ */
 :root{
   --ink:#37352F; --sun:#FFB600; --hl:#FFE08A; --peach:#FBEBDD; --butter:#FDF1D3; --sec:#C25E0A;
-  --font-display:var(--font-sans);
-  --color-text:var(--ink); --color-bg:#FFFBF6; --color-border:#EBE2D8;
+  --font-display:var(--font-sans);  --color-text:var(--ink); --color-bg:#FFFBF6; --color-border:#EBE2D8;
   --color-brand-600:#C8460A; --color-brand-700:#A3380A;
   --shadow-card:none; --shadow-pop:3px 3px 0 var(--ink);
 }
@@ -305,10 +304,11 @@ a.btn{text-decoration:none}
 .region-chip{border-color:#DDD2C7}
 
 /* 로고 */
-.logo{display:inline-flex;align-items:center;gap:8px;font:800 20px/1 var(--font-display);letter-spacing:-.03em;color:var(--ink);text-decoration:none;background:none;border:0;padding:0}
+.logo{display:inline-flex;align-items:center;gap:5px;font:800 20px/1 var(--font-display);letter-spacing:-.03em;color:var(--ink);text-decoration:none;background:none;border:0;padding:0}
 .logo svg{width:40px;height:40px;flex:none}
 .logo em{font-style:normal;color:#D04A02}
 .logo__txt{display:flex;flex-direction:column;gap:3px}
+.logo__txt > span:first-child{margin-left:-1px} /* 큰 글씨 '삼'의 첫 획이 비스듬해 오른쪽으로 보여서, 아래 줄과 시작선을 맞춰요 */
 .logo small{font:600 11px/1 var(--font-sans);color:var(--color-text-sub);letter-spacing:.02em}
 
 /* 홈: 바로가기 타일 */
@@ -407,11 +407,11 @@ body.has-nav .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
 <symbol id="i-alert-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></symbol>
 <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
-<!-- 삼슐랭 로고 (10/07 팀 시안): 별이 든 지도 핀. 핀 주황 = 삼일PwC 대표 주황 #D04A02 (시안 원본 #E94102에서 맞춤)
+<!-- 삼슐랭 로고 (10/07 팀 확정 logo_final): 별이 든 지도 핀. 핀 주황 #E94102 · 테두리 #451003 · 별 #FED20D
      원본 파일: images/logo.svg (홈 화면 아이콘 PNG: images/logo-512.png). 같은 그림을 탭 아이콘(favicon)에도 써요 -->
 <symbol id="i-logo" viewBox="5 4 54 54">
   <g stroke="#451003" stroke-linejoin="round">
-    <path d="M32 55C24 45.5 14.6 34 14.6 25.2a17.4 17.4 0 0 1 34.8 0c0 8.8-9.4 20.3-17.4 29.8z" fill="#D04A02" stroke-width="2.3"/>
+    <path d="M32 55C24 45.5 14.6 34 14.6 25.2a17.4 17.4 0 0 1 34.8 0c0 8.8-9.4 20.3-17.4 29.8z" fill="#E94102" stroke-width="2.3"/>
     <circle cx="32" cy="25.5" r="10.8" fill="#FFFDF8" stroke-width="2"/>
     <polygon transform="translate(32 26.1) scale(1.46)" points="0,-5 1.32,-1.82 4.76,-1.55 2.14,.7 2.94,4.05 0,2.25 -2.94,4.05 -2.14,.7 -4.76,-1.55 -1.32,-1.82" fill="#FED20D" stroke-width="1.25"/>
   </g>
@@ -433,7 +433,7 @@ body.has-nav .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 <div class="toast" id="toast" role="status" aria-live="polite"><svg class="ico ico--16"><use href="#i-check-circle"/></svg><span id="toast-msg"></span></div>
 <p class="sr-only" id="live" aria-live="polite"></p>
 
-<script src="/vendor/supabase.js"></script>
+<script src="vendor/supabase.js"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -668,23 +668,45 @@ function shrinkPhoto(file, sizes){
     img.src = url;
   });
 }
-/* 사진이 없을 때: 식당 종류별 AI 생성 예시 사진(images/food).
-   메뉴·이름에 맞는 사진을 먼저 고르고, 없으면 그 종류 사진 중 하나(같은 식당은 늘 같은 사진).
-   사진을 더 만들면 파일을 넣고 아래 목록에 [파일 이름, 맞는 메뉴]만 추가하면 돼요 */
+/* 사진이 없을 때: AI 생성 예시 사진(images/food, 19장).
+   ① 대표 메뉴(추천 메뉴 + 식당 이름)에 맞는 사진을 식당 종류와 상관없이 먼저 골라요 — 위에서부터 먼저 맞는 것
+   ② 맞는 게 없으면 식당 종류의 사진 중 하나(같은 식당은 늘 같은 사진)
+   사진을 더 만들면 파일을 넣고 DISH_PHOTOS에 [맞는 메뉴, 파일 이름] 한 줄, CAT_PHOTOS에 파일 이름을 추가하면 돼요 */
+const DISH_PHOTOS = [
+  /* 겹치기 쉬운 것을 먼저: 치킨카레 → 카레, 그릴치킨 샐러드 → 샐러드, 돈가스김밥 → 김밥, 막국수 → 냉면, 순대국밥 → 국밥 */
+  [/카레|커리/, "etc-1"],                                      // 카레
+  [/샐러드|포케|브런치/, "we-4"],                               // 샐러드
+  [/쌀국수|분짜|반미/, "etc-2"],                                // 쌀국수
+  [/냉면|막국수|밀면/, "kr-6"],                                 // 냉면
+  [/파전|전집|모둠전|육전|빈대떡|부침개/, "kr-5"],              // 해물파전
+  [/족발|보쌈/, "kr-4"],                                        // 족발
+  [/삼겹|목살|오겹|갈비|숯불|고깃집|스테이크|꼬치|장어/, "kr-3"], // 삼겹살(구운 고기)
+  [/훠궈|샤브|전골/, "kr-1"],                                   // 국물 요리 → 국밥
+  [/치킨|통닭|닭강정/, "etc-3"],                                // 치킨
+  [/피자/, "we-3"],                                             // 피자
+  [/버거/, "we-2"],                                             // 버거
+  [/파스타|스파게티|리조또/, "we-1"],                           // 파스타
+  [/스시|초밥|오마카세|회덮밥|생선회|물회|연어/, "jp-2"],       // 모둠 초밥
+  [/김밥|라면|컵밥/, "sn-2"],                                   // 김밥·라면
+  [/카츠|돈가스|돈까스/, "jp-1"],                               // 돈가스
+  [/국밥|해장국|순두부|감자탕|김치찜|닭한마리|칼국수|곰탕|설렁탕|찌개/, "kr-1"], // 국밥
+  [/떡볶이|라볶이|튀김|어묵/, "sn-1"],                          // 떡볶이
+  [/딤섬|만두|교자|샤오롱/, "cn-2"],                            // 딤섬
+  [/짜장|짬뽕|마라|탕수육|볶음밥/, "cn-1"],                     // 짜장면
+  [/제육|백반|정식|한상|쌈밥|비빔밥|불고기|도시락/, "kr-2"],    // 제육 백반
+];
 const CAT_PHOTOS = {
-  한식:[["kr-1", /국밥|해장국|탕|순두부|찌개|김치찜|닭한마리|칼국수/], ["kr-2", /제육|볶음|백반|정식|한상|갈비|쌈밥|비빔밥/]],
-  중식:[["cn-1", /짜장|짬뽕|면|마라|볶음밥|코스/], ["cn-2", /딤섬|만두|양꼬치/]],
-  일식:[["jp-2", /연어|회|덮밥|오마카세|초밥|스시/], ["jp-1", /카츠|돈가스|돈까스|정식|우동|라멘|꼬치/]],
-  양식:[["we-1", /파스타|코스|브런치|샐러드/], ["we-2", /버거|스테이크|피자/]],
-  분식:[["sn-1", /떡볶이|라볶이|튀김/], ["sn-2", /김밥|라면|컵밥/]],
-  기타:[["etc-1", /카레|커리|도시락/], ["etc-2", /쌀국수|국수|훠궈|반미/]],
+  한식:["kr-1","kr-2","kr-3","kr-4","kr-5","kr-6"], 중식:["cn-1","cn-2"], 일식:["jp-1","jp-2"],
+  양식:["we-1","we-2","we-3","we-4"], 분식:["sn-1","sn-2"], 기타:["etc-1","etc-2","etc-3"],
 };
 const hash = s => [...String(s)].reduce((h, c) => (Math.imul(h, 31) + c.codePointAt(0)) >>> 0, 7);
 /* 예시 사진: 큰 사진 images/food/*.jpg (약 60KB), 썸네일 images/food/thumb/*.jpg (약 10KB) */
 function samplePhoto(r, thumb=false){
-  const l = CAT_PHOTOS[r.c] || CAT_PHOTOS["기타"], text = `${r.m || ""} ${r.n || ""}`;
-  const hit = l.find(([, re]) => re.test(text)) || l[hash(r.id) % l.length];
-  return `/images/food/${thumb ? "thumb/" : ""}${hit[0]}.jpg`;
+  const text = `${r.m || ""} ${String(r.n || "").replace(/\[가상\]/g, "")}`;
+  const dish = DISH_PHOTOS.find(([re]) => re.test(text));
+  const l = CAT_PHOTOS[r.c] || CAT_PHOTOS["기타"];
+  const file = dish ? dish[1] : l[hash(r.id) % l.length];
+  return `images/food/${thumb ? "thumb/" : ""}${file}.jpg`;
 }
 /* kind: "rank"(TOP3 썸네일) | "list"(검색 목록 썸네일) | "hero"(큰 사진). style 은 큰 사진의 여백용.
    썸네일 칸에는 썸네일 파일만 불러와요. 썸네일이 없으면(예전에 올린 사진 등) 큰 사진으로 한 번만 대신해요 */
